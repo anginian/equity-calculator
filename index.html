@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>量化交易收益计算器</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Microsoft YaHei", "SimHei", sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.3rem;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-item {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-item .label {
+            color: #666;
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+        }
+
+        .stat-item .value {
+            color: #667eea;
+            font-size: 1.3rem;
+            font-weight: bold;
+        }
+
+        .stat-item.positive .value {
+            color: #28a745;
+        }
+
+        .stat-item.negative .value {
+            color: #dc3545;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin-top: 20px;
+        }
+
+        .advanced-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px dashed #e0e0e0;
+        }
+
+        .toggle-advanced {
+            background: none;
+            border: none;
+            color: #667eea;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 500;
+        }
+
+        .toggle-advanced:hover {
+            text-decoration: underline;
+        }
+
+        .advanced-options {
+            display: none;
+            margin-top: 15px;
+        }
+
+        .advanced-options.show {
+            display: block;
+        }
+
+        @media (max-width: 900px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 量化交易收益计算器</h1>
+        
+        <div class="main-content">
+            <div class="card">
+                <h2>⚙️ 参数设置</h2>
+                
+                <div class="form-group">
+                    <label>胜率 (0-1，如0.5表示50%)</label>
+                    <input type="number" id="winRate" step="0.01" min="0" max="1" value="0.5">
+                </div>
+                
+                <div class="form-group">
+                    <label>平均亏损率 (0-1，如0.1表示10%)</label>
+                    <input type="number" id="avgLossRate" step="0.01" min="0" max="1" value="0.1">
+                </div>
+                
+                <div class="form-group">
+                    <label>盈亏比 (如2表示盈利是亏损的2倍)</label>
+                    <input type="number" id="profitLossRatio" step="0.1" min="0.01" value="2">
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>交易次数</label>
+                        <input type="number" id="numTrades" min="1" value="100">
+                    </div>
+                    <div class="form-group">
+                        <label>初始本金</label>
+                        <input type="number" id="initialCapital" min="1" value="100000">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>仓位比例 (0-1，默认0.1即10%)</label>
+                    <input type="number" id="positionRatio" step="0.01" min="0" max="1" value="0.1">
+                </div>
+                
+                <div class="advanced-section">
+                    <button class="toggle-advanced" onclick="toggleAdvanced()">
+                        🔧 高级选项（盈亏波动方式） ▼
+                    </button>
+                    
+                    <div class="advanced-options" id="advancedOptions">
+                        <div class="form-group">
+                            <label>波动方式</label>
+                            <select id="fluctuationType" onchange="toggleFluctuationOptions()">
+                                <option value="0">固定值</option>
+                                <option value="1">正态分布</option>
+                                <option value="2">固定区间</option>
+                            </select>
+                        </div>
+                        
+                        <div id="normalOptions" style="display: none;">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>亏损率标准差 (如0.02表示2%)</label>
+                                    <input type="number" id="lossRateStd" step="0.01" min="0" value="0">
+                                </div>
+                                <div class="form-group">
+                                    <label>盈亏比标准差 (如0.5)</label>
+                                    <input type="number" id="profitRatioStd" step="0.1" min="0" value="0">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="rangeOptions" style="display: none;">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>亏损率最小值</label>
+                                    <input type="number" id="lossRateMin" step="0.01" min="0" value="0">
+                                </div>
+                                <div class="form-group">
+                                    <label>亏损率最大值</label>
+                                    <input type="number" id="lossRateMax" step="0.01" min="0" value="0">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>盈亏比最小值</label>
+                                    <input type="number" id="profitRatioMin" step="0.1" min="0" value="0">
+                                </div>
+                                <div class="form-group">
+                                    <label>盈亏比最大值</label>
+                                    <input type="number" id="profitRatioMax" step="0.1" min="0" value="0">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <button class="btn" onclick="calculate()">📈 计算并绘制</button>
+            </div>
+            
+            <div class="card">
+                <h2>📊 统计结果</h2>
+                <div class="stats-grid" id="statsGrid">
+                    <div class="stat-item">
+                        <div class="label">初始本金</div>
+                        <div class="value" id="statInitial">-</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="label">最终本金</div>
+                        <div class="value" id="statFinal">-</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="label">总收益率</div>
+                        <div class="value" id="statReturn">-</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="label">翻倍倍数</div>
+                        <div class="value" id="statFold">-</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="label">最大回撤</div>
+                        <div class="value" id="statDrawdown">-</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="label">单笔期望收益</div>
+                        <div class="value" id="statExpected">-</div>
+                    </div>
+                </div>
+                
+                <div class="chart-container">
+                    <canvas id="equityChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let chart = null;
+
+        function toggleAdvanced() {
+            const options = document.getElementById('advancedOptions');
+            const btn = document.querySelector('.toggle-advanced');
+            options.classList.toggle('show');
+            btn.textContent = options.classList.contains('show') 
+                ? '🔧 高级选项（盈亏波动方式） ▲' 
+                : '🔧 高级选项（盈亏波动方式） ▼';
+        }
+
+        function toggleFluctuationOptions() {
+            const type = document.getElementById('fluctuationType').value;
+            document.getElementById('normalOptions').style.display = type === '1' ? 'block' : 'none';
+            document.getElementById('rangeOptions').style.display = type === '2' ? 'block' : 'none';
+        }
+
+        function randomNormal(mean, std) {
+            let u = 0, v = 0;
+            while (u === 0) u = Math.random();
+            while (v === 0) v = Math.random();
+            return mean + std * Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+        }
+
+        function calculateEquityCurve(
+            winRate,
+            avgLossRate,
+            profitLossRatio,
+            numTrades,
+            initialCapital = 100000,
+            positionRatio = 0.1,
+            lossRateStd = 0,
+            profitRatioStd = 0,
+            lossRateMin = 0,
+            lossRateMax = 0,
+            profitRatioMin = 0,
+            profitRatioMax = 0,
+            fluctuationType = 0
+        ) {
+            const equity = [initialCapital];
+            let currentCapital = initialCapital;
+
+            for (let i = 0; i < numTrades; i++) {
+                const isWin = Math.random() < winRate;
+                let actualLossRate = avgLossRate;
+                let actualProfitRatio = profitLossRatio;
+
+                if (fluctuationType === 1) {
+                    if (lossRateStd > 0) {
+                        actualLossRate = randomNormal(avgLossRate, lossRateStd);
+                        actualLossRate = Math.max(0.001, actualLossRate);
+                    }
+                    if (profitRatioStd > 0) {
+                        actualProfitRatio = randomNormal(profitLossRatio, profitRatioStd);
+                        actualProfitRatio = Math.max(0.01, actualProfitRatio);
+                    }
+                } else if (fluctuationType === 2) {
+                    if (lossRateMin > 0 || lossRateMax > 0) {
+                        actualLossRate = lossRateMin + Math.random() * (lossRateMax - lossRateMin);
+                    }
+                    if (profitRatioMin > 0 || profitRatioMax > 0) {
+                        actualProfitRatio = profitRatioMin + Math.random() * (profitRatioMax - profitRatioMin);
+                    }
+                }
+
+                if (isWin) {
+                    const profit = currentCapital * positionRatio * actualProfitRatio * actualLossRate;
+                    currentCapital += profit;
+                } else {
+                    const loss = currentCapital * positionRatio * actualLossRate;
+                    currentCapital -= loss;
+                }
+
+                if (currentCapital < 0) currentCapital = 0;
+                equity.push(currentCapital);
+            }
+
+            return equity;
+        }
+
+        function calculateStatistics(equityCurve, winRate, avgLossRate, profitLossRatio, numTrades) {
+            const initial = equityCurve[0];
+            const final = equityCurve[equityCurve.length - 1];
+
+            const lossRate = 1 - winRate;
+            const expectedReturn = winRate * profitLossRatio * avgLossRate - lossRate * avgLossRate;
+
+            let peak = equityCurve[0];
+            let maxDrawdown = 0;
+            for (const value of equityCurve) {
+                if (value > peak) peak = value;
+                const drawdown = (peak - value) / peak;
+                if (drawdown > maxDrawdown) maxDrawdown = drawdown;
+            }
+
+            return {
+                initialCapital: initial,
+                finalCapital: final,
+                totalReturn: (final - initial) / initial * 100,
+                foldChange: final / initial,
+                maxDrawdown: maxDrawdown * 100,
+                expectedReturnPerTrade: expectedReturn * 100
+            };
+        }
+
+        function formatNumber(num, decimals = 2) {
+            return num.toLocaleString('zh-CN', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+        }
+
+        function calculate() {
+            const winRate = parseFloat(document.getElementById('winRate').value);
+            const avgLossRate = parseFloat(document.getElementById('avgLossRate').value);
+            const profitLossRatio = parseFloat(document.getElementById('profitLossRatio').value);
+            const numTrades = parseInt(document.getElementById('numTrades').value);
+            const initialCapital = parseFloat(document.getElementById('initialCapital').value);
+            const positionRatio = parseFloat(document.getElementById('positionRatio').value);
+            const fluctuationType = parseInt(document.getElementById('fluctuationType').value);
+
+            let lossRateStd = 0, profitRatioStd = 0;
+            let lossRateMin = 0, lossRateMax = 0;
+            let profitRatioMin = 0, profitRatioMax = 0;
+
+            if (fluctuationType === 1) {
+                lossRateStd = parseFloat(document.getElementById('lossRateStd').value) || 0;
+                profitRatioStd = parseFloat(document.getElementById('profitRatioStd').value) || 0;
+            } else if (fluctuationType === 2) {
+                lossRateMin = parseFloat(document.getElementById('lossRateMin').value) || 0;
+                lossRateMax = parseFloat(document.getElementById('lossRateMax').value) || 0;
+                profitRatioMin = parseFloat(document.getElementById('profitRatioMin').value) || 0;
+                profitRatioMax = parseFloat(document.getElementById('profitRatioMax').value) || 0;
+            }
+
+            const equityCurve = calculateEquityCurve(
+                winRate, avgLossRate, profitLossRatio, numTrades,
+                initialCapital, positionRatio,
+                lossRateStd, profitRatioStd,
+                lossRateMin, lossRateMax,
+                profitRatioMin, profitRatioMax,
+                fluctuationType
+            );
+
+            const stats = calculateStatistics(equityCurve, winRate, avgLossRate, profitLossRatio, numTrades);
+
+            document.getElementById('statInitial').textContent = formatNumber(stats.initialCapital, 0);
+            document.getElementById('statFinal').textContent = formatNumber(stats.finalCapital, 0);
+            
+            const returnEl = document.getElementById('statReturn');
+            returnEl.textContent = formatNumber(stats.totalReturn, 2) + '%';
+            returnEl.parentElement.className = stats.totalReturn >= 0 ? 'stat-item positive' : 'stat-item negative';
+            
+            document.getElementById('statFold').textContent = formatNumber(stats.foldChange, 2) + '倍';
+            
+            const drawdownEl = document.getElementById('statDrawdown');
+            drawdownEl.textContent = formatNumber(stats.maxDrawdown, 2) + '%';
+            drawdownEl.parentElement.className = 'stat-item negative';
+            
+            document.getElementById('statExpected').textContent = formatNumber(stats.expectedReturnPerTrade, 2) + '%';
+
+            const ctx = document.getElementById('equityChart').getContext('2d');
+            
+            if (chart) chart.destroy();
+
+            const labels = equityCurve.map((_, i) => i);
+            const initialLine = new Array(equityCurve.length).fill(initialCapital);
+
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: '资金曲线',
+                            data: equityCurve,
+                            borderColor: '#667eea',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            fill: true,
+                            tension: 0.1,
+                            pointRadius: 0
+                        },
+                        {
+                            label: '初始资金',
+                            data: initialLine,
+                            borderColor: '#6c757d',
+                            borderDash: [5, 5],
+                            fill: false,
+                            pointRadius: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        title: {
+                            display: true,
+                            text: `资金曲线 (胜率:${(winRate*100).toFixed(1)}% | 盈亏比:${profitLossRatio} | 亏损率:${(avgLossRate*100).toFixed(1)}% | ${numTrades}次)`,
+                            font: { size: 14 }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: '交易次数' }
+                        },
+                        y: {
+                            title: { display: true, text: '资金' },
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString('zh-CN');
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        window.onload = function() {
+            calculate();
+        };
+    </script>
+</body>
+</html>
